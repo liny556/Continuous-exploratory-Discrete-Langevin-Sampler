@@ -1,7 +1,7 @@
 # Continuous-exploratory Discrete Langevin Sampler
 
 This repository contains code for the paper
-[Continuous-exploratory Discrete Langevin Sampler](../Continuous_exploratory_Discrete_Langevin_Sampler (2).pdf).
+[Continuous-exploratory Discrete Langevin Sampler](../Continuous_exploratory_Discrete_Langevin_Sampler.pdf).
 
 # Introduction
 We propose Continuous-exploratory Discrete Langevin Sampler (cDLS), a hybrid gradient-based sampler for discrete distributions. cDLS exploits the gradient information to explore the continuous space then samples. We theoretically prove the efficiency of cDLS by showing that without a Metropolis-Hastings correction, the asymptotic bias of cDLS is zero for log-quadratic distributions, and is small for distributions that are close to being log-quadratic. We also provide a non-asymptotic convergence and inference guarantees for general discrete distribution. With cDLS, we develop several variants of sampling algorithms, including unadjusted, Metropolis-adjusted versions, indicating the general applicability for different scenarios. We demonstrate the effectiveness of our proposed algorithm on several experiments, including the Ising model, restricted Boltzmann machines, deep energy-based model, and binary Bayesian neural network.
@@ -43,12 +43,6 @@ To learn the EBM, run ``bash ebm.sh`` and to evaluate the learned EBM using AIS,
 See 
 ```
 ./BinaryBNN
-```
-
-## A Toy Example For Categorical Sampling
-See
-```
-./CategoricalExample
 ```
 
 # References
