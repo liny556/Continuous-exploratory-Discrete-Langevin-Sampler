@@ -23,7 +23,7 @@ def makedirs(dirname):
 
 
 def get_sampler(args):
-    data_dim = np.prod(args.input_size)
+    data_dim = np.prod(args.img_size)
     if args.input_type == "binary":
         if args.sampler == "gibbs":
             sampler = samplers.PerDimGibbsSampler(data_dim, rand=False)
@@ -48,8 +48,12 @@ def get_sampler(args):
         elif args.sampler == "dula":
             sampler = samplers.LangevinSampler(data_dim, 1,
                                            fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size=args.step_size, mh=False)
-
-        
+        elif args.sampler == "cdmala":
+            sampler = samplers.cLangevinSampler(data_dim, 1,
+                                             fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size1=args.step_size, step_size2=args.step_size_c,mh=True)
+        elif args.sampler == "cdula":
+            sampler = samplers.cLangevinSampler(data_dim, 1,
+                                             fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size1=args.step_size, step_size2=args.step_size_c,mh=False)
         else:
             raise ValueError("Invalid sampler...")
     else:
@@ -64,6 +68,26 @@ def get_sampler(args):
     return sampler
 
 
+# class EBM(nn.Module):
+#     def __init__(self, net, mean=None):
+#         super().__init__()
+#         self.net = net
+#         if mean is None:
+#             self.mean = None
+#         else:
+#             self.mean = nn.Parameter(mean, requires_grad=False)
+#             #self.mean2 = nn.Parameter(mean, requires_grad=False)
+
+#     def forward(self, x):
+#         if self.mean is not None:
+#             base_dist = torch.distributions.ContinuousBernoulli(probs=self.mean)
+#             bd = base_dist.log_prob(x).sum(-1)
+#         else:
+#             bd = 0.
+
+#         logp = self.net(x).squeeze()
+#         return logp + bd
+
 class EBM(nn.Module):
     def __init__(self, net, mean=None):
         super().__init__()
@@ -74,16 +98,15 @@ class EBM(nn.Module):
             self.mean = nn.Parameter(mean, requires_grad=False)
 
     def forward(self, x):
-        if self.mean is None:
-            bd = 0.
-        else:
+        if self.mean is not None:
             base_dist = torch.distributions.Bernoulli(probs=self.mean)
             bd = base_dist.log_prob(x).sum(-1)
+        else:
+            bd = 0.
 
         logp = self.net(x).squeeze()
         return logp + bd
-
-
+    
 def main(args):
     makedirs(args.save_dir)
     logger = open("{}/log.txt".format(args.save_dir), 'w')
@@ -99,7 +122,7 @@ def main(args):
     # load data
     train_loader, val_loader, test_loader, args = vamp_utils.load_dataset(args)
     plot = lambda p, x: torchvision.utils.save_image(x.view(x.size(0),
-                                                            args.input_size[0], args.input_size[1], args.input_size[2]),
+                                                            1, args.img_size, args.img_size),
                                                      p, normalize=True, nrow=int(x.size(0) ** .5))
     def preprocess(data):
         if args.dynamic_binarization:
@@ -110,7 +133,7 @@ def main(args):
     # make model
     if args.model.startswith("mlp-"):
         nint = int(args.model.split('-')[1])
-        net = mlp.mlp_ebm(np.prod(args.input_size), nint)
+        net = mlp.mlp_ebm(np.prod(args.img_size), nint)
     elif args.model.startswith("resnet-"):
         nint = int(args.model.split('-')[1])
         net = mlp.ResNetEBM(nint)
@@ -128,6 +151,7 @@ def main(args):
     init_batch = torch.cat(init_batch, 0)
     eps = 1e-2
     init_mean = init_batch.mean(0) * (1. - 2 * eps) + eps
+    #init_std = init_batch.std(0) + 1e-6
     if args.buffer_init == "mean":
         if args.input_type == "binary":
             init_dist = torch.distributions.Bernoulli(probs=init_mean)
@@ -178,6 +202,7 @@ def main(args):
     itr = 0
     best_val_ll = -np.inf
     hop_dists = []
+    ars = []
     all_inds = list(range(args.buffer_size))
     lr = args.lr
     init_dist = torch.distributions.Bernoulli(probs=init_mean.to(device))
@@ -203,8 +228,10 @@ def main(args):
             st = time.time()
             for k in range(args.sampling_steps):
                 x_fake_new = sampler.step(x_fake.detach(), model).detach()
+                #x_fake_new = sampler.step(x_fake.detach(), net).detach()
                 h = (x_fake_new != x_fake).float().view(x_fake_new.size(0), -1).sum(-1).mean().item()
                 hops.append(h)
+
                 x_fake = x_fake_new
             st = time.time() - st
             hop_dists.append(np.mean(hops))
@@ -238,6 +265,8 @@ def main(args):
                          "log p(fake) = {:.4f}, diff = {:.4f}, hops = {:.4f}".format(itr, st, lr, logp_real.mean().item(),
                                                                                      logp_fake.mean().item(), obj.item(),
                                                                                      hop_dists[-1]))
+                if 'm' in args.sampler:
+                    my_print("Acceptance rate: {}".format(np.mean(sampler.a_s)))
             if itr % args.viz_every == 0:
                 plot("{}/data_{}.png".format(args.save_dir, itr), x.detach().cpu())
                 plot("{}/buffer_{}.png".format(args.save_dir, itr), x_fake)
@@ -297,9 +326,12 @@ if __name__ == "__main__":
     parser.add_argument('--eval_sampling_steps', type=int, default=100)
     parser.add_argument('--buffer_size', type=int, default=1000)
     parser.add_argument('--buffer_init', type=str, default='mean')
-    parser.add_argument('--step_size', type=float, default=0.08)
+    parser.add_argument('--step_size', type=float, default=0.15)
+    parser.add_argument('--step_size_c', type=float, default=0.01)
     # training
     parser.add_argument('--n_iters', type=int, default=100000)
+    parser.add_argument('--dynamic_binarization', action='store_true')
+    parser.add_argument('--img_size', type=int, default=28)
     parser.add_argument('--warmup_iters', type=int, default=-1)
     parser.add_argument('--n_epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=100)

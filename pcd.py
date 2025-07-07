@@ -41,10 +41,12 @@ def main(args):
     np.random.seed(args.seed)
 
     # load existing data
-    if args.data == "mnist" or args.data_file is not None:
+    if args.data == "mnist" or os.path.isfile(args.data_file):
+        my_print("loading data")
         train_loader, test_loader, plot, viz = utils.get_data(args)
     # generate the dataset
     else:
+        my_print("generating data")
         data, data_model = utils.generate_data(args)
         my_print("we have created your data, but what have you done for me lately?????")
         with open("{}/data.pkl".format(args.save_dir), 'wb') as f:
@@ -127,7 +129,8 @@ def main(args):
             sampler = samplers.LangevinSampler(model.data_dim, 1, approx=True, fixed_proposal=False, temp=2., step_size=0.2,mh=True)
     elif args.sampler == "dula":
             sampler = samplers.LangevinSampler(model.data_dim, 1, approx=True, fixed_proposal=False, temp=2., step_size=0.1,mh=False)
-         
+    elif args.sampler == 'cdmala':
+        sampler = samplers.cLangevinSampler(model.data_dim, 1, approx=True, fixed_proposal=False, temp=2., step_size1=0.2,step_size2=0.001,mh=True)   
     else:
         assert "gwg-" in args.sampler
         n_hop = int(args.sampler.split('-')[1])
@@ -144,7 +147,7 @@ def main(args):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     itr = 0
     sigmas = []
-    sq_errs = []
+    sq_errs = [] 
     rmses = []
     start_time = time.time()
     time_list = []
@@ -249,15 +252,14 @@ if __name__ == "__main__":
                                             'lattice_ising_2d', 'er_ising'],
                         type=str, default='lattice_ising_2d')
     # mcmc
-    parser.add_argument('--sampler', type=str, default='dmala')
+    parser.add_argument('--sampler', type=str, default='cdula')
     parser.add_argument('--seed', type=int, default=123456)
     parser.add_argument('--approx', action="store_true")
     parser.add_argument('--sampling_steps', type=int, default=100)
     parser.add_argument('--buffer_size', type=int, default=256)
 
     #
-    parser.add_argument('--n_iters', type=int, default=10000)
-
+    parser.add_argument('--n_iters', type=int, default=5000)
     parser.add_argument('--n_hidden', type=int, default=25)
     parser.add_argument('--dim', type=int, default=25)
     parser.add_argument('--n_state', type=int, default=3)

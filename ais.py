@@ -4,6 +4,18 @@ import numpy as np
 from tqdm import tqdm
 
 
+class STEBinary(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        ctx.save_for_backward(x)
+        return (x > 0.5).float()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        x, = ctx.saved_tensors
+        grad_input = grad_output.clone()
+        return grad_input
+    
 class AISModel(nn.Module):
     def __init__(self, model, init_dist):
         super().__init__()
@@ -12,24 +24,36 @@ class AISModel(nn.Module):
 
     def forward(self, x, beta):
         logpx = self.model(x).squeeze()
+        #x_binary = STEBinary.apply(x)
         logpi = self.init_dist.log_prob(x).sum(-1)
         return logpx * beta + logpi * (1. - beta)
 
 
-def evaluate(model, init_dist, sampler,
-             train_loader, val_loader, test_loader,
-             preprocess, device,
-             n_iters, n_samples, steps_per_iter=1, viz_every=100):
-
+def evaluate(
+    model,
+    init_dist,
+    sampler,
+    train_loader,
+    val_loader,
+    test_loader,
+    preprocess,
+    device,
+    n_iters,
+    n_samples,
+    steps_per_iter=1,
+    viz_every=100,
+    is_cyclical=False,
+    is_rbm=False,
+):
     model = AISModel(model, init_dist)
 
     # move to cuda
     model.to(device)
 
     # annealing weights
-    betas = np.linspace(0., 1., n_iters)
+    betas = np.linspace(0.0, 1.0, n_iters)
 
-    samples = init_dist.sample((n_samples,))
+    samples = init_dist.sample((n_samples,)).to(device)
     log_w = torch.zeros((n_samples,)).to(device)
 
     gen_samples = []
@@ -45,7 +69,12 @@ def evaluate(model, init_dist, sampler,
         # update samples
         model_k = lambda x: model(x, beta=beta_k)
         for d in range(steps_per_iter):
-            samples = sampler.step(samples.detach(), model_k).detach()
+            if is_rbm:
+                samples = model.model.gibbs_sample(
+                    v=samples.detach(), n_steps=1
+                ).detach()
+            else:
+                samples = sampler.step(samples.detach(), model_k).detach()
 
         if (itr + 1) % viz_every == 0:
             gen_samples.append(samples.cpu().detach())

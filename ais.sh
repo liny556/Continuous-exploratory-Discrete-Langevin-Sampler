@@ -2,7 +2,7 @@
 
 python -u eval_ais.py \
     --dataset_name static_mnist \
-    --eval_sampler dula \
+    --eval_sampler cdula \
     --eval_step_size 0.1 \
     --sampling_steps 40 \
     --model resnet-64 \

@@ -1,20 +1,10 @@
-# A Langevin-like Sampler for Discrete Distributions
+# Continuous-exploratory Discrete Langevin Sampler
 
 This repository contains code for the paper
-[A Langevin-like Sampler for Discrete Distributions](https://arxiv.org/pdf/2206.09914.pdf), accepted in _International Conference on Machine Learning (ICML), 2022_.
-
-```bibtex
-@article{zhang2022langevinlike,
-  title={A Langevin-like Sampler for Discrete Distributions},
-  author={Zhang, Ruqi and Liu, Xingchao and Liu, Qiang},
-  journal={International Conference on Machine Learning},
-  year={2022}
-}
-```
+[Continuous-exploratory Discrete Langevin Sampler](../Continuous_exploratory_Discrete_Langevin_Sampler (2).pdf).
 
 # Introduction
-We propose discrete Langevin proposal (DLP), a simple and scalable gradient-based
-proposal for sampling complex high-dimensional discrete distributions. In contrast to Gibbs sampling-based methods, DLP is able to update all coordinates in parallel in a single step and the magnitude of changes is controlled by a stepsize. This allows a cheap and efficient exploration in the space of high-dimensional and strongly correlated variables. We prove the efficiency of DLP by showing that the asymptotic bias of the stationary distribution is zero for log-quadratic distributions, and is small for distributions that are close to being log-quadratic. With DLP, we develop several variants of sampling algorithms, including unadjusted, Metropolis-adjusted, stochastic and preconditioned versions. DLP outperforms many popular alternatives on a wide variety of tasks, including Ising models, restricted Boltzmann machines, deep energy-based models, binary neural networks and language generation.
+We propose Continuous-exploratory Discrete Langevin Sampler (cDLS), a hybrid gradient-based sampler for discrete distributions. cDLS exploits the gradient information to explore the continuous space then samples. We theoretically prove the efficiency of cDLS by showing that without a Metropolis-Hastings correction, the asymptotic bias of cDLS is zero for log-quadratic distributions, and is small for distributions that are close to being log-quadratic. We also provide a non-asymptotic convergence and inference guarantees for general discrete distribution. With cDLS, we develop several variants of sampling algorithms, including unadjusted, Metropolis-adjusted versions, indicating the general applicability for different scenarios. We demonstrate the effectiveness of our proposed algorithm on several experiments, including the Ising model, restricted Boltzmann machines, deep energy-based model, and binary Bayesian neural network.
 
 
 # Dependencies
@@ -38,8 +28,8 @@ Run ``bash generate_data.sh`` to generate the data, then learn the Ising model b
 python pcd.py --sampler=<SAMPLER>
 ```
 * ```SAMPLER``` &mdash; Specify which sampler to use. \
-                        ``dmala``: discrete Metropolis-adjusted Langevin algorithm; \
-                        ``dula``: discrete unadjusted Langevin algorithm 
+                        ``cdmala``: continuous-exploratory discrete Metropolis-adjusted Langevin algorithm; \
+                        ``cdula``: continuous-exploratory discrete unadjusted Langevin algorithm 
 
 Use ``plt_pcd`` to plot the results of log RMSE with respect to the number of iterations and the runtime.
 

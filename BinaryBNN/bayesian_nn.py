@@ -25,15 +25,16 @@ def setup_seed(seed):
      random.seed(seed)
      torch.backends.cudnn.deterministic = True
 
-EPOCH = 1000+1
+EPOCH = 2000+1
 TEMP = 100.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sampler', type=str, default='gibbs')
-parser.add_argument('--dataset', type=str, default='adult')
+parser.add_argument('--dataset', type=str, default='blog')
 parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--batchsize', type=int, default=-1)
 args = parser.parse_args()
+
 
 setup_seed(args.seed)
 
@@ -140,7 +141,7 @@ def main():
         X_train, y_train, X_test, y_test = ns.load_data(get_categorical_info=False)
     else:
         print('Not Available')
-        assert False
+        assert False 
 
     n = X_train.shape[0]
     n = int(0.99*n)
@@ -184,6 +185,8 @@ def main():
         sampler = samplers.LangevinSampler(dim, 1,fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size=0.1, mh=False)
     elif args.sampler == 'langevin-mh':
         sampler = samplers.LangevinSampler(dim, 1,fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size=0.1, mh=True)
+    elif args.sampler == 'clangevin-mh':
+        sampler = samplers.cLangevinSampler(dim, 1,fixed_proposal=False, approx=True, multi_hop=False, temp=2., step_size1=0.1,step_size2 = 0.001, mh=True)
     else:
         print('Not Available')
         assert False

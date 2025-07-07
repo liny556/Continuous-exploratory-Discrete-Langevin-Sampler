@@ -65,10 +65,27 @@ class BernoulliRBM(nn.Module):
             for i in range(n_steps):
                 v = self._gibbs_step(v)
         return v
+    
+    def Hessian(self, W, adapt):
+        if adapt:
+            prob = torch.sigmoid(self.logit)
+            diag = (prob.unsqueeze(-1) * self.W**2).sum(1) - (
+                (prob.unsqueeze(-1) * self.W) ** 2
+            ).sum(1)
+            return diag - torch.diag(W)
+        else:
+            return torch.zeros_like(torch.diag(W))
+
 
 
 class LatticeIsingModel(nn.Module):
-    def __init__(self, dim, init_sigma=.15, init_bias=0., learn_G=False, learn_sigma=False, learn_bias=False,
+    def __init__(self,
+                dim,
+                init_sigma=.15, 
+                init_bias=0., 
+                learn_G=False, 
+                learn_sigma=False, 
+                learn_bias=False,
                  lattice_dim=2):
         super().__init__()
         g = ig.Graph.Lattice(dim=[dim] * lattice_dim, circular=True)  # Boundary conditions

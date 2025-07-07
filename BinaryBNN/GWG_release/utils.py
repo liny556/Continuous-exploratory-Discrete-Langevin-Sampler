@@ -47,6 +47,11 @@ def approx_difference_function(x, model):
     wx = gx * -(2. * x - 1)
     return wx.detach()
 
+def gradient_function(x, model):
+    x = x.requires_grad_()
+    gx = torch.autograd.grad(model(x).sum(), x)[0]
+    return gx.detach()
+
 def difference_function_multi_dim(x, model):
     d = torch.zeros_like(x)
     orig_out = model(x).squeeze()
